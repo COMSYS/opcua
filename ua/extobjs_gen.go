@@ -379,8 +379,8 @@ type BrokerDataSetReaderTransportDataType struct {
 }
 
 type RolePermissionType struct {
-	RoleID      *NodeID
-	Permissions PermissionType
+	RoleID      *NodeID        `json:"node_id"`
+	Permissions PermissionType `json:"permission_type"`
 }
 
 type StructureField struct {

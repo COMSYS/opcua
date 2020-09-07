@@ -46,8 +46,8 @@ func Dial(ctx context.Context, endpoint string) (*Conn, error) {
 	}
 
 	conn := &Conn{
-		TCPConn: c.(*net.TCPConn),
-		id:      nextid(),
+		Conn: c,
+		id:   nextid(),
 		ack: &Acknowledge{
 			ReceiveBufSize: DefaultReceiveBufSize,
 			SendBufSize:    DefaultSendBufSize,
@@ -60,6 +60,28 @@ func Dial(ctx context.Context, endpoint string) (*Conn, error) {
 	if err := conn.handshake(endpoint); err != nil {
 		debug.Printf("conn %d: HEL/ACK handshake failed: %s", conn.id, err)
 		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
+func Wrap(c net.Conn, endpoint string) (*Conn, error) {
+
+	conn := &Conn{
+		Conn: c,
+		id:   nextid(),
+		ack: &Acknowledge{
+			ReceiveBufSize: DefaultReceiveBufSize,
+			SendBufSize:    DefaultSendBufSize,
+			MaxChunkCount:  0, // use what the server wants
+			MaxMessageSize: 0, // use what the server wants
+		},
+	}
+
+	debug.Printf("conn %d: start HEL/ACK handshake", conn.id)
+	if err := conn.handshake(endpoint); err != nil {
+		debug.Printf("conn %d: HEL/ACK handshake failed: %s", conn.id, err)
+		_ = conn.Close()
 		return nil, err
 	}
 	return conn, nil
@@ -137,7 +159,7 @@ func (l *Listener) Endpoint() string {
 }
 
 type Conn struct {
-	*net.TCPConn
+	net.Conn
 	id  uint32
 	ack *Acknowledge
 }
@@ -164,7 +186,7 @@ func (c *Conn) MaxChunkCount() uint32 {
 
 func (c *Conn) Close() error {
 	debug.Printf("conn %d: close", c.id)
-	return c.TCPConn.Close()
+	return c.Conn.Close()
 }
 
 func (c *Conn) handshake(endpoint string) error {
@@ -267,7 +289,7 @@ func (c *Conn) srvhandshake(endpoint string) error {
 		if err != nil {
 			return err
 		}
-		c.TCPConn = c2.(*net.TCPConn)
+		c.Conn = c2
 		debug.Printf("conn %d: recv %#v", c.id, rhe)
 		return nil
 
@@ -307,6 +329,10 @@ func (c *Conn) Receive() ([]byte, error) {
 
 	if h.MessageSize > c.ack.ReceiveBufSize {
 		return nil, errors.Errorf("uacp: message too large: %d > %d bytes", h.MessageSize, c.ack.ReceiveBufSize)
+	}
+
+	if h.MessageSize <= hdrlen {
+		return nil, errors.Errorf("uacp: message too small: %d <= %d bytes", h.MessageSize, hdrlen)
 	}
 
 	if _, err := io.ReadFull(c, b[hdrlen:h.MessageSize]); err != nil {

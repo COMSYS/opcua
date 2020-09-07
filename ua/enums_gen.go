@@ -6,6 +6,8 @@
 
 package ua
 
+import "encoding/json"
+
 type NodeIDType uint8
 
 func NodeIDTypeFromString(s string) NodeIDType {
@@ -525,6 +527,47 @@ func NodeClassFromString(s string) NodeClass {
 	}
 }
 
+func (n NodeClass) MarshalJSON() ([]byte, error) {
+	name := ""
+	switch n {
+	case NodeClassUnspecified:
+		name = "Unspecified"
+	case NodeClassObject:
+		name = "Object"
+	case NodeClassVariable:
+		name = "Variable"
+	case NodeClassMethod:
+		name = "Method"
+	case NodeClassObjectType:
+		name = "ObjectType"
+	case NodeClassVariableType:
+		name = "VariableType"
+	case NodeClassReferenceType:
+		name = "ReferenceType"
+	case NodeClassDataType:
+		name = "DataType"
+	case NodeClassView:
+		name = "View"
+	}
+	return json.Marshal(name)
+}
+
+func (n NodeClass) UnmarshalJSON(data []byte) error {
+	var val interface{}
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+	if valStr, ok := val.(string); ok {
+		n = NodeClassFromString(valStr)
+		return nil
+	}
+	if valInt, ok := val.(float64); ok {
+		n = NodeClass(valInt)
+		return nil
+	}
+	return &json.InvalidUnmarshalError{}
+}
+
 const (
 	NodeClassUnspecified   NodeClass = 0
 	NodeClassObject        NodeClass = 1
@@ -580,6 +623,49 @@ func PermissionTypeFromString(s string) PermissionType {
 	default:
 		return 0
 	}
+}
+
+func (n PermissionType) MarshalJSON([]byte, error) ([]byte, error) {
+	name := ""
+	switch n {
+	case PermissionTypeNone:
+		name = "None"
+	case PermissionTypeBrowse:
+		name = "Browse"
+	case PermissionTypeReadRolePermissions:
+		name = "ReadRolePermissions"
+	case PermissionTypeWriteAttribute:
+		name = "WriteAttribute"
+	case PermissionTypeWriteRolePermissions:
+		name = "WriteRolePermissions"
+	case PermissionTypeWriteHistorizing:
+		name = "WriteHistorizing"
+	case PermissionTypeRead:
+		name = "Read"
+	case PermissionTypeWrite:
+		name = "Write"
+	case PermissionTypeReadHistory:
+		name = "ReadHistory"
+	case PermissionTypeInsertHistory:
+		name = "InsertHistory"
+	case PermissionTypeModifyHistory:
+		name = "ModifyHistory"
+	case PermissionTypeDeleteHistory:
+		name = "DeleteHistory"
+	case PermissionTypeReceiveEvents:
+		name = "ReceiveEvents"
+	case PermissionTypeCall:
+		name = "Call"
+	case PermissionTypeAddReference:
+		name = "AddReference"
+	case PermissionTypeRemoveReference:
+		name = "RemoveReference"
+	case PermissionTypeDeleteNode:
+		name = "DeleteNode"
+	case PermissionTypeAddNode:
+		name = "AddNode"
+	}
+	return json.Marshal(name)
 }
 
 const (
@@ -768,6 +854,37 @@ func MessageSecurityModeFromString(s string) MessageSecurityMode {
 	default:
 		return 0
 	}
+}
+
+func (n MessageSecurityMode) MarshalJSON() ([]byte, error) {
+	name := ""
+	switch n {
+	case MessageSecurityModeInvalid:
+		name = "Invalid"
+	case MessageSecurityModeNone:
+		name = "None"
+	case MessageSecurityModeSign:
+		name = "Sign"
+	case MessageSecurityModeSignAndEncrypt:
+		name = "SignAndEncrypt"
+	}
+	return json.Marshal(name)
+}
+
+func (n MessageSecurityMode) UnmarshalJSON(data []byte) error {
+	var val interface{}
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+	if valStr, ok := val.(string); ok {
+		n = MessageSecurityModeFromString(valStr)
+		return nil
+	}
+	if valInt, ok := val.(float64); ok {
+		n = MessageSecurityMode(valInt)
+		return nil
+	}
+	return &json.InvalidUnmarshalError{}
 }
 
 const (

@@ -362,7 +362,8 @@ func (s *SecureChannel) readChunk() (*MessageChunk, error) {
 		return nil, errf
 	}
 	if err != nil {
-		return nil, errors.Errorf("sechan: read header failed: %s %#v", err, err)
+		//return nil, errors.Errorf("sechan: read header failed: %s %#v", err, err)
+		return nil, err
 	}
 
 	const hdrlen = 12

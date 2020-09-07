@@ -324,7 +324,11 @@ func (m *Variant) Encode() ([]byte, error) {
 // encode recursively writes the values to the buffer.
 func (m *Variant) encode(buf *Buffer, val reflect.Value) {
 	if val.Kind() != reflect.Slice || m.Type() == TypeIDByteString {
-		m.encodeValue(buf, val.Interface())
+		// Fix reflect: call of reflect.Value.Interface on zero Value
+		// encoded value might not be readable anymore!
+		if val.Kind() != reflect.Invalid {
+			m.encodeValue(buf, val.Interface())
+		}
 		return
 	}
 	for i := 0; i < val.Len(); i++ {

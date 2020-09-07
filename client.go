@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"os"
 	"reflect"
 	"sort"
 	"sync"
@@ -199,6 +201,54 @@ func (c *Client) openSecureChannel(ctx context.Context, open func() error) error
 	return c.scheduleRenewingToken(ctx)
 }
 
+// Wrap an existing TCP connection
+func (c *Client) Wrap(ctx context.Context, conn *uacp.Conn) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	c.once.Do(func() { c.session.Store((*Session)(nil)) })
+	if c.sechan != nil {
+		return errors.Errorf("secure channel already connected")
+	}
+	sechan, err := uasc.NewSecureChannel(c.endpointURL, conn, c.cfg)
+	if err != nil {
+		log.Print(err)
+		_ = conn.Close()
+		return err
+	}
+	c.sechan = sechan
+	ctx, c.cancelMonitor = context.WithCancel(ctx)
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				// connection will eventually time out if an error occurred here
+				fmt.Fprintf(os.Stderr, "panic on monitorChannel: %v\n", err)
+			}
+		}()
+		c.monitorChannel(ctx)
+	}()
+
+	if err := sechan.Open(); err != nil {
+		c.cancelMonitor()
+
+		_ = conn.Close()
+		c.sechan = nil
+		return err
+	}
+
+	s, err := c.CreateSession(c.sessionCfg)
+	if err != nil {
+		_ = c.Close()
+		return err
+	}
+	if err := c.ActivateSession(s); err != nil {
+		_ = c.Close()
+		return err
+	}
+	return nil
+}
+
 func (c *Client) monitorChannel(ctx context.Context) {
 	for {
 		select {
@@ -243,7 +293,11 @@ func (c *Client) SetReadBuffer(bytes int) error {
 	if c.conn == nil {
 		return errNotConnected
 	}
-	return c.conn.SetReadBuffer(bytes)
+	tcpConn, ok := c.conn.Conn.(*net.TCPConn)
+	if !ok {
+		return errors.New("Cannot set read buffer on non tcp connection")
+	}
+	return tcpConn.SetReadBuffer(bytes)
 }
 
 // SetWriteBuffer sets the operating system's TCP transmit buffer
@@ -252,7 +306,11 @@ func (c *Client) SetWriteBuffer(bytes int) error {
 	if c.conn == nil {
 		return errNotConnected
 	}
-	return c.conn.SetWriteBuffer(bytes)
+	tcpConn, ok := c.conn.Conn.(*net.TCPConn)
+	if !ok {
+		return errors.New("Cannot set write buffer on non tcp connection")
+	}
+	return tcpConn.SetWriteBuffer(bytes)
 }
 
 // Session returns the active session.

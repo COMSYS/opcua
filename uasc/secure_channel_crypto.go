@@ -77,8 +77,14 @@ func (s *SecureChannel) verifyAndDecrypt(m *MessageChunk, b []byte) ([]byte, err
 
 	var headerLength int
 	if isAsymmetric {
+		if m.AsymmetricSecurityHeader == nil {
+			return nil, ua.StatusBadSecurityChecksFailed
+		}
 		headerLength = 12 + m.AsymmetricSecurityHeader.Len()
 	} else {
+		if m.SymmetricSecurityHeader == nil {
+			return nil, ua.StatusBadSecurityChecksFailed
+		}
 		headerLength = 12 + m.SymmetricSecurityHeader.Len()
 	}
 
